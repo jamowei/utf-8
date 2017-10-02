@@ -7,6 +7,7 @@ import (
 	"github.com/atotto/clipboard"
 	"unicode/utf8"
 	"strings"
+	"encoding/hex"
 )
 
 func main() {
@@ -23,7 +24,7 @@ func main() {
 }
 
 func do(input string) {
-	if len(input) > 1 {
+	if utf8.RuneCountInString(input) > 1 {
 		var char string
 		var err error
 		input = strings.ToLower(input)
@@ -32,19 +33,29 @@ func do(input string) {
 			// codepoint
 			char, err = strconv.Unquote(`"\u` + strings.TrimPrefix(input, "u+") + `"`)
 			if err != nil {
-				exception(1, "input %s is not valid utf-8\n", input)
+				exception(1, "input %s is not valid utf-8 codepoint\n", input)
 			}
 			if !utf8.ValidString(char) {
-				exception(1, "input %s is not valid utf-8\n", input)
+				exception(1, "input %s is not valid utf-8 codepoint\n", input)
 			}
 		} else {
 			// hex value
-			//TODO: hex interpretation
+			var res []byte
+			res, err = hex.DecodeString(input)
+			if err != nil {
+				exception(1, "input %s is not valid hex utf-8 value\n", input)
+			} else {
+				char = string(res)
+			}
 		}
 		copy2clip(char)
 	} else {
 		// utf-8 char
-		fmt.Printf("utf8 codepoint: %#U", input)
+		if utf8.ValidString(input) {
+			codepoint, _ := utf8.DecodeRuneInString(input)
+			fmt.Printf("utf8 codepoint of %s is U+%x\n", input, codepoint)
+			fmt.Printf("utf8 hex value of %s is %x", input, input)
+		}
 	}
 }
 
@@ -52,7 +63,7 @@ func copy2clip(text string) {
 	if err := clipboard.WriteAll(text); err != nil {
 		exception(-1, "could not copy to clipboard: %s\n", err)
 	} else {
-		fmt.Printf("%s copied to clipboard (use ctrl+v to insert)\n", text)
+		fmt.Printf("%s copied to clipboard\n", text)
 	}
 }
 
